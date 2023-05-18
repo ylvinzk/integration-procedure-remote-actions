@@ -1,0 +1,57 @@
+  global class RemoteActionUtilityClass implements vlocity_cmt.VlocityOpenInterface {
+    global Boolean invokeMethod(String methodName, Map<String,Object> inputMap, Map<String,Object> outputMap, Map<String,Object> options){
+        Boolean isASuccessfulInvocation = true;
+        try{
+            if(methodName.equals('getPicklistOptions')){
+            	getPicklistOptions(inputMap, outputMap);
+            }else if(methodName.equals('anotherMethod')){
+              // call anotherMethod
+            }else{
+                returnErrorResponse(outputMap, methodName + ' action does not exist.');
+            }
+        }catch(Exception thisException){
+            isASuccessfulInvocation = false;
+            returnErrorResponse(outputMap, thisException.getMessage());
+        }
+        return isASuccessfulInvocation;
+    }
+    
+    private String getPicklistOptions(Map<String,Object> inputMap, Map<String,Object> outputMap){
+        String objectName = inputMap.get('objectName').toString();
+        String picklistName = inputMap.get('picklistName').toString();
+        
+        try{
+            Schema.DescribeFieldResult picklistFieldData = getFieldData(objectName, picklistName);  
+            List<String> pickListOptions = new List<String>();
+            List<Schema.PicklistEntry> picklistEntries = picklistFieldData.getPicklistValues();
+            
+            if(picklistEntries.size() == 0){
+                outputMap.put('error', picklistName + ' has 0 options or is not a picklist.');
+            	return JSON.serialize(outputMap);
+            }
+            
+            for(Schema.PicklistEntry entry : picklistEntries){
+                pickListOptions.add(entry.getLabel());
+            }     
+            
+            outputMap.put('options', pickListOptions);
+            return JSON.serialize(outputMap);
+        }catch(System.NullPointerException nullException){
+            outputMap.put('error', 'The object or picklist does not exist.');
+        	return JSON.serialize(outputMap);
+        }catch(Exception thisException){
+            outputMap.put('error', thisException.getMessage());
+        	return JSON.serialize(outputMap);
+        }
+    }
+    
+    private String returnErrorResponse(Map<String,Object> outputMap, String errorMessage){
+        outputMap.put('error', errorMessage);
+        return JSON.serialize(outputMap);
+    }
+    
+    private Schema.DescribeFieldResult getFieldData(String objectName, String fieldName){
+        SObjectType targetObject = Schema.getGlobalDescribe().get(objectName);
+        return targetObject.getDescribe().fields.getMap().get(fieldName).getDescribe();
+    }
+}
